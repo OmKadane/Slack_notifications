@@ -1,1 +1,1 @@
-# Slack_notifications
+# Slack notfications
