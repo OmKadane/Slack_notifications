@@ -1,0 +1,71 @@
+# .github/workflows/staging-deployment.yml
+
+name: Staging Deployment Notifications
+
+# Trigger the workflow on a push to the 'staging' branch
+on:
+  push:
+    branches: [ staging ]
+
+jobs:
+  deploy_and_notify:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout the code from the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Simulate a deployment script
+      # This step will succeed. To test the failure path,
+      # change the last line to `exit 1`.
+      - name: Deploy to Staging
+        run: |
+          echo "🚀 Starting deployment to staging environment..."
+          # Your actual deployment commands go here
+          sleep 15
+          echo "✅ Deployment script finished."
+          # exit 1 # Uncomment this line to test the failure notification
+
+      # Step 3: Send Slack notification on SUCCESS
+      # This step only runs if all previous steps in the job succeeded.
+      - name: Send Slack Notification on Success
+        if: success()
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "✅ Deployment to Staging Succeeded!",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "✅ *Deployment to Staging Succeeded!* \n*Repository:* `${{ github.repository }}`\n*Commit:* `${{ github.sha }}`"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      # Step 4: Send an email notification on FAILURE
+      # This step only runs if any previous step in the job failed.
+      - name: Send Email Notification on Failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USER }}
+          password: ${{ secrets.EMAIL_PASS }}
+          subject: "❌ Staging Deployment Failed for ${{ github.repository }}"
+          body: |
+            The deployment to the staging environment has failed.
+
+            Repository: ${{ github.repository }}
+            Commit: ${{ github.sha }}
+            Triggered by: ${{ github.actor }}
+
+            Please check the GitHub Actions logs for details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          to: ${{ secrets.TEAM_EMAIL }}
+          from: GitHub Actions CI Bot <${{ secrets.EMAIL_USER }}>
